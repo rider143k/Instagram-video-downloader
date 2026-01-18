@@ -1,0 +1,9 @@
+# *
+User-agent: *
+Allow: /
+
+# Host
+Host: https://instad.pastex.online
+
+# Sitemaps
+Sitemap: https://instad.pastex.online/sitemap.xml
