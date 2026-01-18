@@ -26,6 +26,26 @@ import { cn, getPostShortcode, isShortcodePresent } from "@/lib/utils";
 import { useGetInstagramPostMutation } from "@/features/react-query/mutations/instagram";
 import { HTTP_CODE_ENUM } from "@/features/api/http-codes";
 
+function extractUsernameFromUrl(url: string) {
+  try {
+    // for URLs like: https://www.instagram.com/reel/xyz/
+    const segments = new URL(url).pathname.split("/").filter(Boolean);
+    // reel URLs don't always include username, so fallback:
+    if (segments[0] && !["reel", "p", "tv", "stories"].includes(segments[0])) {
+      return segments[0]; // username found
+    }
+  } catch {}
+  return "";
+}
+
+function buildFilename(url: string, platform = "instagram", brand = "InstaD", ext = "mp4") {
+  const username = extractUsernameFromUrl(url) || "video";
+  const date = new Date().toISOString().split("T")[0];
+  return `${platform}-${username}-${date}-${brand}.${ext}`;
+}
+
+
+
 // 5 minutes
 const CACHE_TIME = 5 * 60 * 1000;
 
@@ -50,38 +70,24 @@ const useFormSchema = () => {
 };
 
 function triggerDownload(videoUrl: string) {
-  // Ensure we are in a browser environment
   if (typeof window === "undefined") return;
 
-  const randomTime = new Date().getTime().toString().slice(-8);
-  const filename = `gram-grabberz-${randomTime}.mp4`;
+  // get real filename from URL
+  const filename = buildFilename(videoUrl);
 
-  // Construct the URL to your proxy API route
-  const proxyUrl = new URL("/api/download-proxy", window.location.origin); // Use relative path + origin
+  const proxyUrl = new URL("/api/download-proxy", window.location.origin);
   proxyUrl.searchParams.append("url", videoUrl);
   proxyUrl.searchParams.append("filename", filename);
 
-  console.log("Using proxy URL:", proxyUrl.toString()); // For debugging
-
   const link = document.createElement("a");
-  // Set href to your proxy route
   link.href = proxyUrl.toString();
   link.target = "_blank";
-
-  // The 'download' attribute here is less critical because the proxy
-  // sets the Content-Disposition header, but it can still be helpful
-  // as a fallback or hint for the browser. Keep the desired filename.
   link.setAttribute("download", filename);
-
-  // Append link to the body temporarily
   document.body.appendChild(link);
-
-  // Programmatically click the link to trigger the download
   link.click();
-
-  // Clean up and remove the link
   document.body.removeChild(link);
 }
+
 
 type CachedUrl = {
   videoUrl?: string;

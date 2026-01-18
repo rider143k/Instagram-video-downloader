@@ -1,4 +1,6 @@
-# Gram Grabberz (Instagram Video Downloader)
+# InstaD (Instagram Video Downloader)
+
+https://github.com/riad-azz/instagram-video-downloader
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
