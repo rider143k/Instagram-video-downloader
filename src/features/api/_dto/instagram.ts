@@ -67,6 +67,26 @@ export type XdtShortcodeMediaDto = {
   edge_web_media_to_related_media: EdgeMediaToCaptionClassDto;
   coauthor_producers: any[];
   pinned_for_users: any[];
+  edge_sidecar_to_children?: EdgeSidecarToChildrenDto;
+};
+
+export type EdgeSidecarToChildrenDto = {
+  edges: SidecarEdgeDto[];
+};
+
+export type SidecarEdgeDto = {
+  node: SidecarNodeDto;
+};
+
+export type SidecarNodeDto = {
+  __typename: string;
+  id: string;
+  shortcode: string;
+  dimensions: DimensionsDto;
+  display_url: string;
+  is_video: boolean;
+  video_url?: string;
+  tracking_token: string;
 };
 
 export type ClipsMusicAttributionInfoDto = {

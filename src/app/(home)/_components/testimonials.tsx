@@ -25,7 +25,7 @@ export function Testimonials() {
           <div className="mt-8 grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-8">
             <div className="flex flex-col items-center rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md sm:p-6 dark:border-gray-700 dark:bg-gray-800">
               <span className="text-3xl font-bold text-teal-500 sm:text-4xl">
-                50K+
+                Fast
               </span>
               <span className="text-muted-foreground text-sm sm:text-base">
                 {t("stats.downloads")}
@@ -33,7 +33,7 @@ export function Testimonials() {
             </div>
             <div className="flex flex-col items-center rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md sm:p-6 dark:border-gray-700 dark:bg-gray-800">
               <span className="text-3xl font-bold text-teal-500 sm:text-4xl">
-                100K+
+                Free
               </span>
               <span className="text-muted-foreground text-sm sm:text-base">
                 {t("stats.users")}
@@ -41,7 +41,7 @@ export function Testimonials() {
             </div>
             <div className="flex flex-col items-center rounded-xl border bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md sm:p-6 dark:border-gray-700 dark:bg-gray-800">
               <span className="text-3xl font-bold text-teal-500 sm:text-4xl">
-                4.9/5
+                24/7
               </span>
               <span className="text-muted-foreground text-sm sm:text-base">
                 {t("stats.rating")}

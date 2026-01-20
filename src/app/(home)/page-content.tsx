@@ -3,24 +3,30 @@ import { Features } from "./_components/features";
 import { HowItWorks } from "./_components/how-it-works";
 import { Testimonials } from "./_components/testimonials";
 import { FrequentlyAsked } from "./_components/frequently-asked";
+import { Header } from "./_components/header";
+import { Footer } from "./_components/footer";
 
 export default function HomePage() {
   return (
-    <div>
-      {/* Hero Section */}
-      <Hero />
+    <>
+      <Header />
+      <div>
+        {/* Hero Section */}
+        <Hero />
 
-      {/* Features Section */}
-      <Features />
+        {/* Features Section */}
+        <Features />
 
-      {/* How It Works Section */}
-      <HowItWorks />
+        {/* How It Works Section */}
+        <HowItWorks />
 
-      {/* Testimonials Section */}
-      <Testimonials />
+        {/* Testimonials Section */}
+        <Testimonials />
 
-      {/* FAQ Section */}
-      <FrequentlyAsked />
-    </div>
+        {/* FAQ Section */}
+        <FrequentlyAsked />
+      </div>
+      <Footer />
+    </>
   );
 }

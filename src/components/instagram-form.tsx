@@ -26,6 +26,8 @@ import { cn, getPostShortcode, isShortcodePresent } from "@/lib/utils";
 import { useGetInstagramPostMutation } from "@/features/react-query/mutations/instagram";
 import { HTTP_CODE_ENUM } from "@/features/api/http-codes";
 
+type ContentType = "video" | "photo" | "reels" | "story" | "igtv";
+
 function extractUsernameFromUrl(url: string) {
   try {
     // for URLs like: https://www.instagram.com/reel/xyz/
@@ -34,7 +36,7 @@ function extractUsernameFromUrl(url: string) {
     if (segments[0] && !["reel", "p", "tv", "stories"].includes(segments[0])) {
       return segments[0]; // username found
     }
-  } catch {}
+  } catch { }
   return "";
 }
 
@@ -69,14 +71,15 @@ const useFormSchema = () => {
   });
 };
 
-function triggerDownload(videoUrl: string) {
+function triggerDownload(url: string, contentType: ContentType = "video") {
   if (typeof window === "undefined") return;
 
-  // get real filename from URL
-  const filename = buildFilename(videoUrl);
+  // Determine file extension based on content type
+  const ext = contentType === "photo" ? "jpg" : "mp4";
+  const filename = buildFilename(url, "instagram", "InstaD", ext);
 
   const proxyUrl = new URL("/api/download-proxy", window.location.origin);
-  proxyUrl.searchParams.append("url", videoUrl);
+  proxyUrl.searchParams.append("url", url);
   proxyUrl.searchParams.append("filename", filename);
 
   const link = document.createElement("a");
@@ -91,6 +94,8 @@ function triggerDownload(videoUrl: string) {
 
 type CachedUrl = {
   videoUrl?: string;
+  photoUrl?: string;
+  contentType?: ContentType;
   expiresAt: number;
   invalid?: {
     messageKey: string;
@@ -100,6 +105,8 @@ type CachedUrl = {
 export function InstagramForm(props: { className?: string }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const cachedUrls = React.useRef(new Map<string, CachedUrl>());
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedType, setSelectedType] = React.useState<ContentType>("video");
 
   const t = useTranslations("components.instagramForm");
 
@@ -132,10 +139,14 @@ export function InstagramForm(props: { className?: string }) {
   function setCachedUrl(
     shortcode: string,
     videoUrl?: string,
+    photoUrl?: string,
+    contentType?: ContentType,
     invalid?: CachedUrl["invalid"]
   ) {
     cachedUrls.current?.set(shortcode, {
       videoUrl,
+      photoUrl,
+      contentType,
       expiresAt: Date.now() + CACHE_TIME,
       invalid,
     });
@@ -174,8 +185,14 @@ export function InstagramForm(props: { className?: string }) {
       return;
     }
 
-    if (cachedUrl?.videoUrl) {
-      triggerDownload(cachedUrl.videoUrl);
+    // Check cache based on selected type
+    if (selectedType === "photo" && cachedUrl?.photoUrl) {
+      triggerDownload(cachedUrl.photoUrl, "photo");
+      return;
+    }
+
+    if ((selectedType === "video" || selectedType === "reels" || selectedType === "igtv") && cachedUrl?.videoUrl) {
+      triggerDownload(cachedUrl.videoUrl, selectedType);
       return;
     }
 
@@ -183,17 +200,36 @@ export function InstagramForm(props: { className?: string }) {
       const { data, status } = await getInstagramPost({ shortcode });
 
       if (status === HTTP_CODE_ENUM.OK) {
-        const downloadUrl = data.data.xdt_shortcode_media.video_url;
+        const mediaData = data.data.xdt_shortcode_media;
+        const videoUrl = mediaData.video_url;
+        const photoUrl = mediaData.display_url;
+
+        let downloadUrl: string | undefined;
+        let contentType: ContentType = selectedType;
+
+        // Determine what to download based on selected type and available content
+        if (selectedType === "photo") {
+          downloadUrl = photoUrl;
+          contentType = "photo";
+        } else if (selectedType === "video" || selectedType === "reels" || selectedType === "igtv") {
+          downloadUrl = videoUrl;
+          contentType = selectedType;
+        } else if (selectedType === "story") {
+          // Stories can be either photo or video
+          downloadUrl = videoUrl || photoUrl;
+          contentType = videoUrl ? "video" : "photo";
+        }
+
         if (downloadUrl) {
-          triggerDownload(downloadUrl);
-          setCachedUrl(shortcode, downloadUrl);
+          triggerDownload(downloadUrl, contentType);
+          setCachedUrl(shortcode, videoUrl, photoUrl, contentType);
           toast.success(t("toasts.success"), {
             id: "toast-success",
             position: "top-center",
             duration: 1500,
           });
         } else {
-          throw new Error("Video URL not found");
+          throw new Error("Content URL not found");
         }
       } else if (
         status === HTTP_CODE_ENUM.NOT_FOUND ||
@@ -207,12 +243,12 @@ export function InstagramForm(props: { className?: string }) {
           status === HTTP_CODE_ENUM.BAD_REQUEST ||
           status === HTTP_CODE_ENUM.NOT_FOUND
         ) {
-          setCachedUrl(shortcode, undefined, {
+          setCachedUrl(shortcode, undefined, undefined, undefined, {
             messageKey: errorMessageKey,
           });
         }
       } else {
-        throw new Error("Failed to fetch video");
+        throw new Error("Failed to fetch content");
       }
     } catch (error) {
       console.error(error);
@@ -229,16 +265,16 @@ export function InstagramForm(props: { className?: string }) {
   }, []);
 
   return (
-    <div className={cn("w-full space-y-2", props.className)}>
+    <div className={cn("w-full space-y-4", props.className)}>
       {errorMessage ? (
-        <p className="h-4 text-sm text-red-500 sm:text-start">{errorMessage}</p>
+        <p className="h-4 text-center text-sm text-red-500 animate-in fade-in slide-in-from-top-2 duration-300">{errorMessage}</p>
       ) : (
         <div className="h-4"></div>
       )}
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="flex w-full flex-col gap-2 sm:flex-row sm:items-end"
+          className="flex w-full flex-col gap-3 sm:flex-row sm:items-end"
         >
           <FormField
             control={form.control}
@@ -250,7 +286,7 @@ export function InstagramForm(props: { className?: string }) {
                   {t("inputs.url.label")}
                 </FormLabel>
                 <FormControl>
-                  <div className="relative w-full">
+                  <div className="relative w-full group">
                     <Input
                       {...field}
                       type="url"
@@ -258,17 +294,39 @@ export function InstagramForm(props: { className?: string }) {
                       minLength={1}
                       maxLength={255}
                       placeholder={t("inputs.url.placeholder")}
+                      className="h-12 sm:h-14 rounded-full bg-white pr-20 sm:pr-24 text-sm sm:text-base shadow-lg transition-all duration-300 focus:shadow-xl focus:ring-2 focus:ring-blue-400 dark:bg-gray-800 dark:focus:ring-blue-500"
                     />
-                    {isShowClearButton && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={clearUrlField}
-                        className="absolute top-1/2 right-2 h-4 w-4 -translate-y-1/2 cursor-pointer"
-                      >
-                        <X className="text-red-500" />
-                      </Button>
-                    )}
+                    <div className="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
+                      {!isShowClearButton && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={async () => {
+                            try {
+                              const text = await navigator.clipboard.readText();
+                              form.setValue("url", text);
+                            } catch (err) {
+                              console.error("Failed to read clipboard:", err);
+                            }
+                          }}
+                          className="h-7 sm:h-8 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                        >
+                          Paste
+                        </Button>
+                      )}
+                      {isShowClearButton && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={clearUrlField}
+                          className="h-6 w-6 cursor-pointer transition-transform hover:scale-110 active:scale-95"
+                        >
+                          <X className="h-4 w-4 text-red-500" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </FormControl>
               </FormItem>
@@ -277,18 +335,18 @@ export function InstagramForm(props: { className?: string }) {
           <Button
             disabled={isDisabled}
             type="submit"
-            className="bg-teal-500 text-white hover:bg-teal-600 dark:bg-teal-700 dark:hover:bg-teal-600"
+            className="h-12 sm:h-14 w-full sm:w-auto rounded-full bg-gradient-to-r from-blue-500 to-blue-600 px-6 sm:px-8 text-sm sm:text-base font-semibold text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed dark:from-blue-600 dark:to-blue-700"
           >
             {isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              <Download className="h-4 w-4" />
+              <Download className="h-5 w-5" />
             )}
-            {t("submit")}
+            <span className="ml-2">{t("submit")}</span>
           </Button>
         </form>
       </Form>
-      <p className="text-muted-foreground text-center text-xs">{t("hint")}</p>
+      <p className="text-muted-foreground text-center text-xs sm:text-sm animate-in fade-in duration-500 delay-200">{t("hint")}</p>
     </div>
   );
 }

@@ -2,14 +2,14 @@ import { Metadata } from "next";
 
 export const siteConfig = {
   name: "InstaD",
-  domain: "gram-grabberz.vercel.com",
+  domain: "instad.pastex.online",
   shortName: "InstaD",
-  creator: "riad-azz",
+  creator: "Aniket_kumar",
   description:
-    "Fast, free, and no login required. Just paste the URL and download.",
+    "Fast, free, instagram video downloader and no login required. Just paste the URL and download.",
   ogDescription:
-    "Fast, free, and no login required. Just paste the URL and download.",
-  url: "https://gram-grabberz.vercel.com",
+    "Fast, free, instagram video downloader and no login required. Just paste the URL and download.",
+  url: "https://instad.pastex.online",
 };
 
 export const siteMetadata: Metadata = {
@@ -31,20 +31,18 @@ export const siteMetadata: Metadata = {
     creator: siteConfig.creator,
   },
   robots: {
-    index: false,
+    index: true,
     follow: true,
-    nocache: true,
     googleBot: {
       index: true,
-      follow: false,
-      noimageindex: true,
+      follow: true,
       "max-video-preview": -1,
       "max-image-preview": "large",
       "max-snippet": -1,
     },
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/Instagram_logo.png",
   },
-  manifest: "/webmanifest.json",
+  manifest: "/web.manifest.json",
 };

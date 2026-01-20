@@ -6,10 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function isShortcodePresent(url: string) {
-  const regex = /\/(p|reel)\/([a-zA-Z0-9_-]+)\/?/;
+  // Support /p/, /reel/, /tv/ (IGTV), and /stories/username/shortcode patterns
+  const regex = /\/(p|reel|tv)\/([a-zA-Z0-9_-]+)\/?|\/stories\/[^\/]+\/([0-9]+)/;
   const match = url.match(regex);
 
-  if (match && match[2]) {
+  if (match && (match[2] || match[3])) {
     return true;
   }
 
@@ -17,11 +18,13 @@ export function isShortcodePresent(url: string) {
 }
 
 export function getPostShortcode(url: string): string | null {
-  const regex = /\/(p|reel)\/([a-zA-Z0-9_-]+)\/?/;
+  // Support /p/, /reel/, /tv/ (IGTV), and /stories/username/shortcode patterns
+  const regex = /\/(p|reel|tv)\/([a-zA-Z0-9_-]+)\/?|\/stories\/[^\/]+\/([0-9]+)/;
   const match = url.match(regex);
 
-  if (match && match[2]) {
-    const shortcode = match[2];
+  if (match && (match[2] || match[3])) {
+    // Return shortcode from either post/reel/tv (match[2]) or story (match[3])
+    const shortcode = match[2] || match[3];
     return shortcode;
   } else {
     return null;

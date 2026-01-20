@@ -30,7 +30,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} className="scroll-smooth" suppressHydrationWarning>
       <meta name="google-site-verification" content="NRla5PsChZqbUDCCnMapt2nZKwnBXYI2a_bVWCDCpYc" />
-      <body className={cn("antialiased", geistSans.className)}>
+      <body className={cn("antialiased overflow-x-hidden", geistSans.className)}>
         <LocaleProvider locale={locale} messages={messages}>
           <ThemeProvider>
             <ReactQueryProvider>

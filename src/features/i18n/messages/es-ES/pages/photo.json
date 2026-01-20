@@ -1,0 +1,14 @@
+{
+    "title": "InstaD - Photo Downloader",
+    "description": "Download Instagram photos for free in high quality",
+    "hero": {
+        "title": "Download Instagram Photos in Seconds",
+        "description": "Fast, free, and no login required. Just paste the photo URL and download.",
+        "form": {
+            "placeholder": "Paste Instagram photo URL here...",
+            "button": "Download"
+        },
+        "formHint": "Works with single photos and carousels",
+        "learnMore": "Learn how it works"
+    }
+}

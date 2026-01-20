@@ -74,6 +74,7 @@ export function getInstagramPostGraphQL(
       Pragma: "no-cache",
       "Cache-Control": "no-cache",
     },
+    // Use /p/ as referrer - Instagram treats IGTV videos same as posts
     referrer: `https://www.instagram.com/p/${data.shortcode}/`,
     body: generateRequestBody(data.shortcode),
     method: "POST",

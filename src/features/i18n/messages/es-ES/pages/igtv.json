@@ -1,0 +1,14 @@
+{
+    "title": "InstaD - IGTV Downloader",
+    "description": "Download Instagram IGTV videos for free in HD quality",
+    "hero": {
+        "title": "Download Instagram IGTV Videos in Seconds",
+        "description": "Fast, free, and no login required. Just paste the IGTV URL and download.",
+        "form": {
+            "placeholder": "Paste Instagram IGTV URL here...",
+            "button": "Download"
+        },
+        "formHint": "Works with all IGTV videos",
+        "learnMore": "Learn how it works"
+    }
+}
