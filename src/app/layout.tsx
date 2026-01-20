@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans as RootFont } from "next/font/google";
+import Script from "next/script";
 
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/features/theme/theme-provider";
@@ -39,6 +40,19 @@ export default async function RootLayout({
             </ReactQueryProvider>
           </ThemeProvider>
         </LocaleProvider>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-8DX31MNHSJ"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-8DX31MNHSJ');
+          `}
+        </Script>
       </body>
     </html>
   );
