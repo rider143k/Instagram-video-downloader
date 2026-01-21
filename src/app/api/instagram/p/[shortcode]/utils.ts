@@ -229,23 +229,25 @@ export async function getInstagramPostGraphQL(
   data: GetInstagramPostRequest,
   requestConfig?: RequestConfigType
 ) {
-  // 1. Try Primary Method (GraphQL) with rotated UA
+  // 1. Try HTML Scraping FIRST (Most reliable, least suspicious if headers are right)
   try {
-    const response = await fetchGraphQL(data, requestConfig);
-    if (response.ok) return response; // 200 OK
+    const htmlResponse = await fetchHTMLFallback(data);
+    if (htmlResponse.ok) return htmlResponse;
 
-    // 2. If 429 or 401, Try Fallback (HTML Scraping)
-    if (response.status === 429 || response.status === 401) {
-      console.warn(`GraphQL blocked (${response.status}), trying HTML fallback...`);
-      const fallbackResponse = await fetchHTMLFallback(data);
-      // If fallback also fails (e.g. 404), return the original error or the fallback error
-      if (fallbackResponse.ok) return fallbackResponse;
+    // 2. If HTML fails, verify why.
+    // If it was 429, strict block. GraphQL won't help. 
+    // If 404/401, maybe GraphQL knows better?
+    // Let's try GraphQL only if strict block didn't happen
+    if (htmlResponse.status !== 429) {
+      console.warn(`P1 method skipped (${htmlResponse.status}), switching to API method...`);
+      const graphResponse = await fetchGraphQL(data, requestConfig);
+      if (graphResponse.ok) return graphResponse;
     }
 
-    return response; // Return original failure if fallback didn't help (or wasn't tried for other codes)
+    return htmlResponse; // Return the first error
   } catch (error) {
-    console.error("Fetch error:", error);
-    // Try fallback on network error too?
-    return fetchHTMLFallback(data);
+    console.error("HTML fetch error:", error);
+    // Try GraphQL as last resort
+    return fetchGraphQL(data, requestConfig);
   }
 }
