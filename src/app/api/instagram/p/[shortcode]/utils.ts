@@ -3,6 +3,16 @@ import { IG_GraphQLResponseDto } from "@/features/api/_dto/instagram";
 
 import querystring from "querystring";
 
+const USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+];
+
+function getRandomUserAgent() {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
 function generateRequestBody(shortcode: string) {
   return querystring.stringify({
     av: "0",
@@ -46,26 +56,22 @@ export type GetInstagramPostRequest = {
 
 export type GetInstagramPostResponse = IG_GraphQLResponseDto;
 
-export function getInstagramPostGraphQL(
-  data: GetInstagramPostRequest,
-  requestConfig?: RequestConfigType
-) {
+async function fetchGraphQL(data: GetInstagramPostRequest, requestConfig?: RequestConfigType, userAgent?: string) {
   const requestUrl = new URL("https://www.instagram.com/graphql/query");
 
   return fetch(requestUrl, {
     credentials: "include",
     headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile Safari/537.36",
+      "User-Agent": userAgent || getRandomUserAgent(),
       Accept: "*/*",
       "Accept-Language": "en-US,en;q=0.5",
       "Content-Type": "application/x-www-form-urlencoded",
       "X-FB-Friendly-Name": "PolarisPostActionLoadPostQueryQuery",
       "X-BLOKS-VERSION-ID":
         "0d99de0d13662a50e0958bcb112dd651f70dea02e1859073ab25f8f2a477de96",
-      "X-CSRFToken": "uy8OpI1kndx4oUHjlHaUfu",
+      "X-CSRFToken": "uy8OpI1kndx4oUHjlHaUfu", // Ideally this should be dynamic
       "X-IG-App-ID": "1217981644879628",
-      "X-FB-LSD": "AVrqPT0gJDo",
+      "X-FB-LSD": "AVrqPT0gJDo", // Ideally this should be dynamic
       "X-ASBD-ID": "359341",
       "Sec-GPC": "1",
       "Sec-Fetch-Dest": "empty",
@@ -74,11 +80,172 @@ export function getInstagramPostGraphQL(
       Pragma: "no-cache",
       "Cache-Control": "no-cache",
     },
-    // Use /p/ as referrer - Instagram treats IGTV videos same as posts
     referrer: `https://www.instagram.com/p/${data.shortcode}/`,
     body: generateRequestBody(data.shortcode),
     method: "POST",
     mode: "cors",
     ...requestConfig,
   });
+}
+
+async function fetchHTMLFallback(data: GetInstagramPostRequest) {
+  const userAgent = getRandomUserAgent();
+  const res = await fetch(`https://www.instagram.com/p/${data.shortcode}/`, {
+    headers: {
+      "User-Agent": userAgent,
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "none",
+      "Sec-Fetch-User": "?1",
+      "Upgrade-Insecure-Requests": "1"
+    }
+  });
+
+  if (!res.ok) {
+    return res; // Propagate error status
+  }
+
+  const html = await res.text();
+
+  // Try to parse shared data
+  // Look for video_url inside the scripts
+  // Pattern 1: xdt_shortcode_media
+
+  // Very simplistic regex extraction for video_url
+  // This is fragile but a good fallback
+  let videoUrlMatch = html.match(/"video_url"\s*:\s*"([^"]+)"/);
+
+  if (!videoUrlMatch) {
+    // Try og:video
+    videoUrlMatch = html.match(/<meta property="og:video" content="([^"]+)"/);
+  }
+
+  const displayUrlMatch = html.match(/"display_url"\s*:\s*"([^"]+)"/);
+  // const isVideoMatch = html.match(/"is_video":true/); 
+
+  if (!videoUrlMatch) {
+    // If we got 200 OK but no video url, it might be a login page or structure changed
+    // Check for login
+    if (html.includes("Login • Instagram") || html.includes("Welcome back to Instagram")) {
+      return new Response(null, { status: 401, statusText: "Login Required" });
+    }
+    return new Response(null, { status: 404, statusText: "Video not found in HTML" });
+  }
+
+  // Construct minimal JSON
+  // Unescape unicode chars if necessary. 
+  // JSON.parse(`"${match}"`) handles escapes like \u0026
+
+  let videoUrl = "";
+  try {
+    if (videoUrlMatch[0].startsWith('"video_url"')) {
+      videoUrl = JSON.parse(`"${videoUrlMatch[1]}"`);
+    } else {
+      // It's from meta tag, so it is the string directly (maybe html encoded)
+      videoUrl = videoUrlMatch[1].replace(/&amp;/g, "&");
+    }
+  } catch {
+    videoUrl = videoUrlMatch[1];
+  }
+
+  const displayUrl = displayUrlMatch ? JSON.parse(`"${displayUrlMatch[1]}"`) : "";
+
+  const mockData: IG_GraphQLResponseDto = {
+    data: {
+      xdt_shortcode_media: {
+        __typename: "GraphVideo",
+        __isXDTGraphMediaInterface: "GraphVideo",
+        id: "0",
+        shortcode: data.shortcode,
+        thumbnail_src: displayUrl,
+        dimensions: { height: 0, width: 0 },
+        gating_info: null,
+        fact_check_overall_rating: null,
+        fact_check_information: null,
+        sensitivity_friction_info: null,
+        sharing_friction_info: { should_have_sharing_friction: false, bloks_app_url: null },
+        media_overlay_info: null,
+        media_preview: "",
+        display_url: displayUrl,
+        display_resources: [],
+        accessibility_caption: null,
+        dash_info: { is_dash_eligible: false, video_dash_manifest: "", number_of_qualities: 0 },
+        has_audio: true,
+        video_url: videoUrl,
+        video_view_count: 0,
+        video_play_count: 0,
+        encoding_status: null,
+        is_published: true,
+        product_type: "clips",
+        title: "",
+        video_duration: 0,
+        clips_music_attribution_info: { artist_name: "", song_name: "", uses_original_audio: true, should_mute_audio: false, should_mute_audio_reason: "", audio_id: "" },
+        is_video: true,
+        tracking_token: "",
+        upcoming_event: null,
+        edge_media_to_tagged_user: { edges: [] },
+        owner: { id: "0", username: "instagram_user", is_verified: false, profile_pic_url: "", blocked_by_viewer: false, restricted_by_viewer: null, followed_by_viewer: false, full_name: "", has_blocked_viewer: false, is_embeds_disabled: false, is_private: false, is_unpublished: false, requested_by_viewer: false, pass_tiering_recommendation: false, edge_owner_to_timeline_media: { count: 0 }, edge_followed_by: { count: 0 } },
+        edge_media_to_caption: { edges: [] }, // Missing caption is fine
+        can_see_insights_as_brand: false,
+        caption_is_edited: false,
+        has_ranked_comments: false,
+        like_and_view_counts_disabled: false,
+        edge_media_to_parent_comment: { count: 0, page_info: { has_next_page: false, end_cursor: null }, edges: [] },
+        edge_media_to_hoisted_comment: { edges: [] },
+        edge_media_preview_comment: { count: 0, edges: [] },
+        comments_disabled: false,
+        commenting_disabled_for_viewer: false,
+        taken_at_timestamp: 0,
+        edge_media_preview_like: { count: 0, edges: [] },
+        edge_media_to_sponsor_user: { edges: [] },
+        is_affiliate: false,
+        is_paid_partnership: false,
+        location: null,
+        nft_asset_info: null,
+        viewer_has_liked: false,
+        viewer_has_saved: false,
+        viewer_has_saved_to_collection: false,
+        viewer_in_photo_of_you: false,
+        viewer_can_reshare: false,
+        is_ad: false,
+        edge_web_media_to_related_media: { edges: [] },
+        coauthor_producers: [],
+        pinned_for_users: []
+      }
+    },
+    extensions: { is_final: true },
+    status: "ok"
+  };
+
+  return new Response(JSON.stringify(mockData), {
+    status: 200,
+    headers: { "Content-Type": "application/json" }
+  });
+}
+
+export async function getInstagramPostGraphQL(
+  data: GetInstagramPostRequest,
+  requestConfig?: RequestConfigType
+) {
+  // 1. Try Primary Method (GraphQL) with rotated UA
+  try {
+    const response = await fetchGraphQL(data, requestConfig);
+    if (response.ok) return response; // 200 OK
+
+    // 2. If 429 or 401, Try Fallback (HTML Scraping)
+    if (response.status === 429 || response.status === 401) {
+      console.warn(`GraphQL blocked (${response.status}), trying HTML fallback...`);
+      const fallbackResponse = await fetchHTMLFallback(data);
+      // If fallback also fails (e.g. 404), return the original error or the fallback error
+      if (fallbackResponse.ok) return fallbackResponse;
+    }
+
+    return response; // Return original failure if fallback didn't help (or wasn't tried for other codes)
+  } catch (error) {
+    console.error("Fetch error:", error);
+    // Try fallback on network error too?
+    return fetchHTMLFallback(data);
+  }
 }
